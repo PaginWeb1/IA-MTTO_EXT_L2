@@ -2,78 +2,142 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>IA de Mantenimiento L2</title>
+<title>IA Mantenimiento L2</title>
 <style>
-  body { font-family: Arial; margin: 20px; }
-  input, textarea { width: 100%; margin-bottom: 10px; }
-  button { padding: 10px; margin-bottom: 10px; }
-  #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
-  .user { color: blue; }
-  .ia { color: green; }
+    body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f9;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    .chat-container {
+        width: 400px;
+        max-width: 90%;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    #chat {
+        flex: 1;
+        padding: 10px;
+        overflow-y: auto;
+        background: #e8e8f0;
+    }
+
+    .mensaje {
+        margin: 5px 0;
+        padding: 8px 12px;
+        border-radius: 20px;
+        max-width: 80%;
+        word-wrap: break-word;
+        display: inline-block;
+    }
+
+    .user {
+        background: #4a90e2;
+        color: white;
+        align-self: flex-end;
+    }
+
+    .ia {
+        background: #7ed321;
+        color: black;
+        align-self: flex-start;
+    }
+
+    .input-container {
+        display: flex;
+        border-top: 1px solid #ccc;
+        padding: 10px;
+        background: #f9f9fb;
+    }
+
+    .input-container input {
+        flex: 1;
+        padding: 10px;
+        border-radius: 20px;
+        border: 1px solid #ccc;
+        outline: none;
+    }
+
+    .input-container button {
+        margin-left: 10px;
+        padding: 10px 20px;
+        border-radius: 20px;
+        border: none;
+        background: #4a90e2;
+        color: white;
+        cursor: pointer;
+    }
+
+    .input-container button:hover {
+        background: #357ab8;
+    }
 </style>
 </head>
 <body>
 
-<h2>IA Mantenimiento L2</h2>
-
-<div id="chat"></div>
-
-<input type="text" id="equipo" placeholder="Nombre del equipo">
-<textarea id="falla" placeholder="Describe la falla"></textarea>
-<button onclick="consultarFalla()">Enviar</button>
+<div class="chat-container">
+    <div id="chat"></div>
+    <div class="input-container">
+        <input type="text" id="entrada" placeholder="Describe el equipo y la falla...">
+        <button onclick="procesarMensaje()">Enviar</button>
+    </div>
+</div>
 
 <script>
 let baseConocimiento = JSON.parse(localStorage.getItem("baseConocimiento")) || [];
 
 function mostrarMensaje(tipo, mensaje) {
     const chat = document.getElementById("chat");
-    chat.innerHTML += `<div class="${tipo}"><b>${tipo}:</b> ${mensaje}</div>`;
+    const div = document.createElement("div");
+    div.classList.add("mensaje", tipo);
+    div.textContent = mensaje;
+    chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
 }
 
-function consultarFalla() {
-    const equipo = document.getElementById("equipo").value.trim();
-    const falla = document.getElementById("falla").value.trim();
+function procesarMensaje() {
+    const entrada = document.getElementById("entrada").value.trim();
+    if(!entrada) return;
+    mostrarMensaje("user", entrada);
 
-    if(!equipo || !falla) return;
-
-    mostrarMensaje("user", `Equipo: ${equipo}, Falla: ${falla}`);
-
-    // Buscar coincidencia aproximada
-    let registro = null;
+    // Búsqueda simple: buscamos coincidencia exacta en alguna falla
+    let registroEncontrado = null;
     for(let e of baseConocimiento) {
-        if(e.equipo.toLowerCase() === equipo.toLowerCase()) {
-            for(let f of e.fallas) {
-                if(f.descripcion.toLowerCase() === falla.toLowerCase()) {
-                    registro = f;
-                    break;
-                }
+        for(let f of e.fallas) {
+            if(entrada.toLowerCase().includes(e.equipo.toLowerCase()) && entrada.toLowerCase().includes(f.descripcion.toLowerCase())) {
+                registroEncontrado = f;
+                break;
             }
         }
+        if(registroEncontrado) break;
     }
 
-    if(registro) {
-        mostrarMensaje("ia", `Causas: ${registro.causas.join(", ")} | Soluciones: ${registro.solucion.join(", ")}`);
+    if(registroEncontrado) {
+        mostrarMensaje("ia", `Causas: ${registroEncontrado.causas.join(", ")} | Soluciones: ${registroEncontrado.solucion.join(", ")}`);
     } else {
-        // Aprender nueva falla
-        let causa = prompt("No conozco esta falla. ¿Cuál fue la causa?");
-        let solucion = prompt("¿Cuál fue la solución aplicada?");
+        // Aprendizaje interactivo
+        const equipo = prompt("No conozco esta falla. ¿Cuál es el nombre del equipo?");
+        const falla = prompt("¿Cuál es la descripción de la falla?");
+        const causa = prompt("¿Cuál fue la causa?");
+        const solucion = prompt("¿Cuál fue la solución aplicada?");
 
-        if(causa && solucion) {
-            // Revisar si el equipo ya existe
+        if(equipo && falla && causa && solucion) {
             let equipoExistente = baseConocimiento.find(e => e.equipo.toLowerCase() === equipo.toLowerCase());
-            const nuevoRegistro = {
-                descripcion: falla,
-                causas: [causa],
-                solucion: [solucion]
-            };
-
+            const nuevoRegistro = {descripcion: falla, causas: [causa], solucion: [solucion]};
             if(equipoExistente) {
                 equipoExistente.fallas.push(nuevoRegistro);
             } else {
                 baseConocimiento.push({equipo: equipo, fallas: [nuevoRegistro]});
             }
-
             localStorage.setItem("baseConocimiento", JSON.stringify(baseConocimiento));
             mostrarMensaje("ia", "He aprendido esta nueva falla y la guardaré para futuras consultas.");
         } else {
@@ -81,7 +145,7 @@ function consultarFalla() {
         }
     }
 
-    document.getElementById("falla").value = "";
+    document.getElementById("entrada").value = "";
 }
 </script>
 
