@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>IA de Mantenimiento L2</title>
+<style>
+  body { font-family: Arial; margin: 20px; }
+  input, textarea { width: 100%; margin-bottom: 10px; }
+  button { padding: 10px; margin-bottom: 10px; }
+  #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
+  .user { color: blue; }
+  .ia { color: green; }
+</style>
+</head>
+<body>
+
+<h2>IA Mantenimiento L2</h2>
+
+<div id="chat"></div>
+
+<input type="text" id="equipo" placeholder="Nombre del equipo">
+<textarea id="falla" placeholder="Describe la falla"></textarea>
+<button onclick="consultarFalla()">Enviar</button>
+
+<script>
+let baseConocimiento = JSON.parse(localStorage.getItem("baseConocimiento")) || [];
+
+function mostrarMensaje(tipo, mensaje) {
+    const chat = document.getElementById("chat");
+    chat.innerHTML += `<div class="${tipo}"><b>${tipo}:</b> ${mensaje}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function consultarFalla() {
+    const equipo = document.getElementById("equipo").value.trim();
+    const falla = document.getElementById("falla").value.trim();
+
+    if(!equipo || !falla) return;
+
+    mostrarMensaje("user", `Equipo: ${equipo}, Falla: ${falla}`);
+
+    // Buscar coincidencia aproximada
+    let registro = null;
+    for(let e of baseConocimiento) {
+        if(e.equipo.toLowerCase() === equipo.toLowerCase()) {
+            for(let f of e.fallas) {
+                if(f.descripcion.toLowerCase() === falla.toLowerCase()) {
+                    registro = f;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(registro) {
+        mostrarMensaje("ia", `Causas: ${registro.causas.join(", ")} | Soluciones: ${registro.solucion.join(", ")}`);
+    } else {
+        // Aprender nueva falla
+        let causa = prompt("No conozco esta falla. ¿Cuál fue la causa?");
+        let solucion = prompt("¿Cuál fue la solución aplicada?");
+
+        if(causa && solucion) {
+            // Revisar si el equipo ya existe
+            let equipoExistente = baseConocimiento.find(e => e.equipo.toLowerCase() === equipo.toLowerCase());
+            const nuevoRegistro = {
+                descripcion: falla,
+                causas: [causa],
+                solucion: [solucion]
+            };
+
+            if(equipoExistente) {
+                equipoExistente.fallas.push(nuevoRegistro);
+            } else {
+                baseConocimiento.push({equipo: equipo, fallas: [nuevoRegistro]});
+            }
+
+            localStorage.setItem("baseConocimiento", JSON.stringify(baseConocimiento));
+            mostrarMensaje("ia", "He aprendido esta nueva falla y la guardaré para futuras consultas.");
+        } else {
+            mostrarMensaje("ia", "No se guardó la nueva falla.");
+        }
+    }
+
+    document.getElementById("falla").value = "";
+}
+</script>
+
+</body>
+</html>
