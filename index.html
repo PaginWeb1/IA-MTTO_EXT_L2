@@ -4,82 +4,83 @@
 <meta charset="UTF-8">
 <title>IA Mantenimiento L2</title>
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background: #f4f4f9;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-    }
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f4f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
 
-    .chat-container {
-        width: 400px;
-        max-width: 90%;
-        background: #fff;
-        border-radius: 10px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
+.chat-container {
+    width: 450px;
+    max-width: 95%;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
 
-    #chat {
-        flex: 1;
-        padding: 10px;
-        overflow-y: auto;
-        background: #e8e8f0;
-    }
+#chat {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    background: #e8e8f0;
+}
 
-    .mensaje {
-        margin: 5px 0;
-        padding: 8px 12px;
-        border-radius: 20px;
-        max-width: 80%;
-        word-wrap: break-word;
-        display: inline-block;
-    }
+.mensaje {
+    margin: 5px 0;
+    padding: 8px 12px;
+    border-radius: 20px;
+    max-width: 80%;
+    word-wrap: break-word;
+    display: inline-block;
+}
 
-    .user {
-        background: #4a90e2;
-        color: white;
-        align-self: flex-end;
-    }
+.user {
+    background: #4a90e2;
+    color: white;
+    align-self: flex-end;
+}
 
-    .ia {
-        background: #7ed321;
-        color: black;
-        align-self: flex-start;
-    }
+.ia {
+    background: #7ed321;
+    color: black;
+    align-self: flex-start;
+}
 
-    .input-container {
-        display: flex;
-        border-top: 1px solid #ccc;
-        padding: 10px;
-        background: #f9f9fb;
-    }
+.input-container {
+    display: flex;
+    border-top: 1px solid #ccc;
+    padding: 10px;
+    background: #f9f9fb;
+}
 
-    .input-container input {
-        flex: 1;
-        padding: 10px;
-        border-radius: 20px;
-        border: 1px solid #ccc;
-        outline: none;
-    }
+.input-container input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+}
 
-    .input-container button {
-        margin-left: 10px;
-        padding: 10px 20px;
-        border-radius: 20px;
-        border: none;
-        background: #4a90e2;
-        color: white;
-        cursor: pointer;
-    }
+.input-container button {
+    margin-left: 10px;
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: none;
+    background: #4a90e2;
+    color: white;
+    cursor: pointer;
+}
 
-    .input-container button:hover {
-        background: #357ab8;
-    }
+.input-container button:hover {
+    background: #357ab8;
+}
 </style>
 </head>
 <body>
@@ -87,15 +88,39 @@
 <div class="chat-container">
     <div id="chat"></div>
     <div class="input-container">
-        <input type="text" id="entrada" placeholder="Describe el equipo y la falla...">
+        <input type="text" id="entrada" placeholder="Describe la falla o agrega una nueva...">
         <button onclick="procesarMensaje()">Enviar</button>
     </div>
 </div>
 
 <script>
-let baseConocimiento = JSON.parse(localStorage.getItem("baseConocimiento")) || [];
+// ==== Base de conocimiento inicial ====
+let baseConocimiento = JSON.parse(localStorage.getItem("baseConocimiento")) || [
+    {
+        equipo: "BAK",
+        fallas: [
+            {
+                descripcion: "Reemplazo de fusible y medición de mV",
+                pasos: [
+                    "Buscar el fusible asociado a la señal.",
+                    "Abrir el circuito.",
+                    "Pasar a modo instalación.",
+                    "Sacar el fusible quemado.",
+                    "Cambiar con uno de la misma capacidad.",
+                    "Ingresar el nuevo fusible.",
+                    "Cerrar el circuito y tomar medición de mV (debe estar entre 275 y 280).",
+                    "Abrir nuevamente el circuito.",
+                    "Pasar de modo instalación a modo observación.",
+                    "Cerrar el circuito y tomar nuevamente los mV.",
+                    "Si los valores están dentro del rango nominal, dejar por terminado la avería."
+                ]
+            }
+        ]
+    }
+];
 
-function mostrarMensaje(tipo, mensaje) {
+// ==== Funciones de chat ====
+function mostrarMensaje(tipo, mensaje){
     const chat = document.getElementById("chat");
     const div = document.createElement("div");
     div.classList.add("mensaje", tipo);
@@ -104,49 +129,61 @@ function mostrarMensaje(tipo, mensaje) {
     chat.scrollTop = chat.scrollHeight;
 }
 
-function procesarMensaje() {
+function agregarFalla(equipo, descripcion, pasos){
+    let equipoExistente = baseConocimiento.find(e => e.equipo.toLowerCase() === equipo.toLowerCase());
+
+    const nuevaFalla = { descripcion, pasos };
+
+    if(equipoExistente){
+        equipoExistente.fallas.push(nuevaFalla);
+    } else {
+        baseConocimiento.push({equipo, fallas: [nuevaFalla]});
+    }
+
+    localStorage.setItem("baseConocimiento", JSON.stringify(baseConocimiento));
+    mostrarMensaje("ia", "✅ Nueva falla agregada correctamente.");
+}
+
+function consultarFalla(entradaUsuario){
+    entradaUsuario = entradaUsuario.toLowerCase();
+    for(let equipo of baseConocimiento){
+        for(let falla of equipo.fallas){
+            if(entradaUsuario.includes(equipo.equipo.toLowerCase()) &&
+               entradaUsuario.includes(falla.descripcion.toLowerCase())){
+                return "Pasos para la falla:\n- " + falla.pasos.join("\n- ");
+            }
+        }
+    }
+    return null;
+}
+
+// ==== Procesar mensaje del usuario ====
+function procesarMensaje(){
     const entrada = document.getElementById("entrada").value.trim();
     if(!entrada) return;
     mostrarMensaje("user", entrada);
 
-    // Búsqueda simple: buscamos coincidencia exacta en alguna falla
-    let registroEncontrado = null;
-    for(let e of baseConocimiento) {
-        for(let f of e.fallas) {
-            if(entrada.toLowerCase().includes(e.equipo.toLowerCase()) && entrada.toLowerCase().includes(f.descripcion.toLowerCase())) {
-                registroEncontrado = f;
-                break;
-            }
-        }
-        if(registroEncontrado) break;
-    }
-
-    if(registroEncontrado) {
-        mostrarMensaje("ia", `Causas: ${registroEncontrado.causas.join(", ")} | Soluciones: ${registroEncontrado.solucion.join(", ")}`);
+    const respuesta = consultarFalla(entrada);
+    if(respuesta){
+        mostrarMensaje("ia", respuesta);
     } else {
-        // Aprendizaje interactivo
-        const equipo = prompt("No conozco esta falla. ¿Cuál es el nombre del equipo?");
-        const falla = prompt("¿Cuál es la descripción de la falla?");
-        const causa = prompt("¿Cuál fue la causa?");
-        const solucion = prompt("¿Cuál fue la solución aplicada?");
+        // Aprender nueva falla
+        const equipo = prompt("No conozco esta falla. Ingresa el nombre del equipo:");
+        if(!equipo) return mostrarMensaje("ia", "No se agregó la falla.");
 
-        if(equipo && falla && causa && solucion) {
-            let equipoExistente = baseConocimiento.find(e => e.equipo.toLowerCase() === equipo.toLowerCase());
-            const nuevoRegistro = {descripcion: falla, causas: [causa], solucion: [solucion]};
-            if(equipoExistente) {
-                equipoExistente.fallas.push(nuevoRegistro);
-            } else {
-                baseConocimiento.push({equipo: equipo, fallas: [nuevoRegistro]});
-            }
-            localStorage.setItem("baseConocimiento", JSON.stringify(baseConocimiento));
-            mostrarMensaje("ia", "He aprendido esta nueva falla y la guardaré para futuras consultas.");
-        } else {
-            mostrarMensaje("ia", "No se guardó la nueva falla.");
-        }
+        const descripcion = prompt("Descripción de la falla:");
+        if(!descripcion) return mostrarMensaje("ia", "No se agregó la falla.");
+
+        const pasosRaw = prompt("Ingresa los pasos separados por coma ',' (ej: Paso1,Paso2,Paso3):");
+        if(!pasosRaw) return mostrarMensaje("ia", "No se agregó la falla.");
+
+        const pasos = pasosRaw.split(",").map(p => p.trim());
+        agregarFalla(equipo, descripcion, pasos);
     }
 
     document.getElementById("entrada").value = "";
 }
+
 </script>
 
 </body>
